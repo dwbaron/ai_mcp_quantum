@@ -8,6 +8,7 @@ Welcome to the QureGenAI 医图生科 and TyxonQ 太玄量子 platforms. Our mis
 
 Our platform enables researchers, developers, and large models to programmatically access state-of-the-art computational models for molecular simulation, protein structure prediction, and more.
 
+Click To Use [QureGenAI](https://service.quregenai.com)
 
 
 
