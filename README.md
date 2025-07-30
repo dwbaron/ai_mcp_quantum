@@ -84,7 +84,7 @@ Performs molecular docking using the AutoDock algorithm.
 | `receptor` | string | Yes | URL or server-accessible path to the receptor file (e.g., PDB format). |
 | `center_x`, `center_y`, `center_z` | number/string | Yes | Coordinates for the center of the docking box. |
 | `size_x`, `size_y`, `size_z` | number | No | Dimensions of the docking box. Defaults to 15 for each axis. |
-| `ligand` | string | Yes (one of three) | Path to a single ligand file (SDF, PDB). |
+| `ligand` | string | Yes (one of three) | Path to a single ligand file (SDF, PDB, URL) single file size should below `10MB`. |
 | `ligands` | array of strings | Yes (one of three) | A list of paths to multiple ligand files. |
 | `smiles` | string | Yes (one of three) | A SMILES string (use `\n` for multiple), or a path to a `.txt` file with SMILES strings (one per line). |
 | `thread` | integer | No | Number of threads. Default is 1200, min is 1000. |
@@ -101,7 +101,8 @@ curl -X POST "https://api.quregenai.com/api/autodock_api/autodock_docking" \
   -d '{
     "job_name": "AutoDock_Single_Ligand_Test",
     "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-    "ligand": "/path/to/your/ligand.sdf",
+    "ligand": "ligand.sdf",  # locla file size should below 10MB
+    # "ligand": "https://www.url_path_to/ligand.sdf"  # URL
     "center_x": -3.52,
     "center_y": 5.57,
     "center_z": -26.55,
@@ -129,7 +130,8 @@ def submit_autodock_single_ligand():
     data = {
         "job_name": "AutoDock_Single_Ligand_Test",
         "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-        "ligand": "/path/to/your/ligand.sdf",
+        "ligand": "/path_to_file/ligand.sdf",  # local file size should below 10MB
+        # "ligand": "https://www.url_path_to/ligand.sdf"  # URL链接
         "center_x": -3.52,
         "center_y": 5.57,
         "center_z": -26.55
@@ -343,6 +345,116 @@ The API uses standard HTTP status codes to indicate the success or failure of a 
 | `400 Bad Request` | The request was malformed, missing parameters, or had conflicting parameters. | `{"success": false, "message": "Missing required parameter: center_y"}` |
 | `401 Unauthorized` | The API key is missing, invalid, or the account has insufficient funds. | `{"message":"Invalid or missing Authorization header","success":false}` |
 | `500 Internal Server Error` | An unexpected error occurred on the server. | Varies. |
+
+## Common Failure Examples
+
+### a. Insufficient Balance
+```bash
+Request failed: 401, {"message":"Insufficient QAU balance, current balance: 0, at least 5 QAU required to submit task, please top up first","success":false}
+```
+
+### b. API Key Authentication Error
+```bash
+Request failed: 401, {"message":"Missing Authorization header, please provide API key","success":false}
+```
+
+### c. Missing Required Parameters
+```python
+    # Missing center_y and center_z parameters for pocket center coordinates
+    data = {
+        "job_name": "AutoDock_Single_Ligand_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        "smiles": "xxxx.sdf",
+        "center_x": '-3.52',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+```
+
+```bash
+Request failed: 400, {
+  "success": false,
+  "message": "Missing required parameter: center_y (docking box parameter)"
+}
+```
+
+### d. Redundant Parameters
+```python
+    # Both smiles and ligand parameters are provided,
+    # but only one should be provided
+    data = {
+        "job_name": "AutoDock_Single_Ligand_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        "smiles": "CCO",
+        "ligand": 'xxx.sdf',
+        "center_x": '-3.52',
+        'center_y': '5.57',
+        'center_z': '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+```
+
+```bash
+Request failed: 400, {
+  "success": false,
+  "message": "Only one of ligand file(ligand/ligands) or SMILES string can be provided"
+}
+```
+
+### e. Incorrect Ligand File - Protein PDB Instead of Small Molecule
+```python
+    # Here ligand parameter is given a protein PDB local file instead of a small molecule
+    data = {
+        "job_name": "AutoDock_Single_Ligand_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        'ligand': "1uw6.pdb",
+        "center_x": '-3.52',
+        'center_y': '5.57',
+        'center_z': '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+```
+
+```bash
+Request failed: 400, {
+  "success": false,
+  "message": "Detected ligand file '1uw6.pdb' contains multiple amino acid residues (TYR, MET, THR, HIS, ARG...), this appears to be a protein file. This platform only supports protein-small molecule docking, not protein-protein docking. Please check your ligand file content."
+}
+```
+
+### f. Ligand Structure Error - Unable to Convert to PDBQT Successfully
+```python
+    # Here an incorrect SMILES structure is provided
+    # Need to strictly check the structural correctness of ligands and receptor proteins
+    data = {
+        "job_name": "AutoDock_Single_Ligand_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        "smiles": "CCCCCcccccccccc",
+        "center_x": '-3.52',
+        "center_y": '5.57',
+        "center_z": '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+```
+
+```bash
+Request failed: 400, {
+  "success": false,
+  "message": "Failed to convert ligand structure to PDBQT format. Please verify the SMILES string is chemically valid and properly formatted."
+}
+```
+
 
 ## Best Practices
 

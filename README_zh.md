@@ -77,7 +77,7 @@ Authorization: Bearer your_api_key_here
 | `receptor` | string | 是 | 指向受体文件（例如 PDB 格式）的 URL 或服务器可访问路径。 |
 | `center_x`, `center_y`, `center_z` | number/string | 是 | 对接盒子中心的坐标。 |
 | `size_x`, `size_y`, `size_z` | number | 否 | 对接盒子的尺寸。每个轴默认为 15。 |
-| `ligand` | string | 是 (三选一) | 单个配体文件（SDF, PDB）的路径。 |
+| `ligand` | string | 是 (三选一) | 单个配体文件（SDF, PDB, URL）的路径，文件大小不超过`10MB`|
 | `ligands` | array of strings | 是 (三选一) | 多个配体文件路径的列表。 |
 | `smiles` | string | 是 (三选一) | SMILES 字符串（多个分子使用 `\n` 分隔），或指向包含 SMILES 字符串（每行一个）的 `.txt` 文件的路径。 |
 | `thread` | integer | 否 | 线程数。默认为 1200，最小为 1000。 |
@@ -94,7 +94,8 @@ curl -X POST "https://api.quregenai.com/api/autodock_api/autodock_docking" \
   -d '{
     "job_name": "AutoDock_Single_Ligand_Test",
     "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-    "ligand": "/path/to/your/ligand.sdf",
+    "ligand": "/path_to_file/ligand.sdf",  # 本地文件大小不超过10MB
+    # "ligand": "https://www.url_path_to/ligand.sdf"  # URL链接
     "center_x": -3.52,
     "center_y": 5.57,
     "center_z": -26.55,
@@ -122,7 +123,8 @@ def submit_autodock_single_ligand():
     data = {
         "job_name": "AutoDock_Single_Ligand_Test",
         "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-        "ligand": "/path/to/your/ligand.sdf",
+        "ligand": "/path_to_file/ligand.sdf",  # 本地文件大小不超过10MB
+        # "ligand": "https://www.url_path_to/ligand.sdf"  # URL链接
         "center_x": -3.52,
         "center_y": 5.57,
         "center_z": -26.55
@@ -336,6 +338,110 @@ API 使用标准的 HTTP 状态码来指示请求的成功或失败。
 | `400 Bad Request` | 请求格式错误、缺少参数或参数冲突。 | `{"success": false, "message": "缺少必需参数: center_y"}` |
 | `401 Unauthorized` | API 密钥缺失、无效或账户余额不足。 | `{"message":"缺少或无效的 Authorization 头部","success":false}` |
 | `500 Internal Server Error` | 服务器上发生意外错误。 | 多种多样。 |
+
+
+## 常见运行失败样例
+### a. 余额不足
+```bash
+请求失败: 401, {"message":"QAU余额不足，当前余额: 0，至少需要5 QAU才能提交任务，请先充值","success":false}
+```
+### b. API_KEY 验证错误
+```bash
+请求失败: 401, {"message":"缺少Authorization头部，请提供API密钥","success":false}
+```
+
+### c. 缺少必要的参数
+```python
+    # 这里缺少了口袋中心坐标center_y 以及 center_z两个参数
+    data = {
+        "job_name": "AutoDock_Single_Ligand_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        "smiles": "xxxx.sdf",
+        "center_x": '-3.52',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+```
+
+```bash
+请求失败: 400, {
+  "success": false,
+  "message": "缺少必需参数: center_y（对接盒子参数）"
+}
+```
+
+### d. 参数冗余
+```python
+
+    # 这里不但提供了smiles参数而且还有ligand参数，
+    # 但只能提供其中的一项
+    data = {
+        "job_name": "AutoDock_Single_Ligand_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        "smiles": "CCO",
+        "ligand": 'xxx.sdf',
+        "center_x": '-3.52',
+        'center_y': '5.57',
+        'center_z': '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+```
+
+```bash
+请求失败: 400, {
+  "success": false,
+  "message": "只能提供配体文件(ligand/ligands)或SMILES字符串中的一种"
+}
+```
+
+### e. 配体文件错误上传成蛋白质pdb文件，而不是小分子
+```python
+    # 这里ligand参数给了一个蛋白质pdb本地文件而不是小分子
+    data = {
+        "job_name": "AutoDock_Single_Ligand_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        'ligand': "1uw6.pdb",
+        "center_x": '-3.52',
+        'center_y': '5.57',
+        'center_z': '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+```
+
+```bash
+请求失败: 400, {
+  "success": false,
+  "message": "检测到配体文件 '1uw6.pdb' 包含多个氨基酸残基 (TYR, MET, THR, HIS, ARG...)，这似乎是一个蛋白质文件。本平台只支持蛋白质与小分子对接，不支持蛋白质与蛋白质对接。请检查您的配体文件内容。"
+}
+```
+
+### f. 配体结构错误导致无法转换PDBQT成功
+```python
+    # 这里给了一个结构错误的smiles
+    # 需要严格检查配体和受体蛋白的结构正确性
+    data = {
+        "job_name": "AutoDock_Single_Ligand_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        "smiles": "CCCCCcccccccccc",
+        "center_x": '-3.52',
+        "center_y": '5.57',
+        "center_z": '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+```
+
+
 
 ## 最佳实践
 
