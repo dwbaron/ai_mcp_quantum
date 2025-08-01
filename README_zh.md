@@ -486,7 +486,125 @@ def submit_protenix_protein_ligand():
     ```
 3.  **监控任务状态**: 您可以使用 `task_id` 通过平台的 Web 界面监控任务的状态。登录 Web 门户，导航到相应的模型部分（例如 AutoDock），然后在历史记录列表中找到您的任务以查看其状态并检索结果。
 
-**注意**: 用于以编程方式检查任务状态的专用 API 端点计划在未来版本中发布。
+## 任务查询
+```python
+import requests
+# 已知任务id
+task_id = '1-688c4948-15b5223d-770c7c8b5656'
+BASE_URL = 'http://api.quregenai.com'
+url = f"{BASE_URL}/api/tasks/{task_id}"
+
+API_KEY = 'sk-4d4de881d792473f9c2baafe1992a0c4'
+HEADERS = {
+    'Content-Type': 'application/json',
+    'Authorization': f'Bearer {API_KEY}'
+}
+
+response = requests.get(url, headers=HEADERS)
+response.json()
+```
+**已完成任务返回结果**
+
+注意`status`字段值为`completed`
+```python
+{'success': True,
+ 'message': '任务已完成',
+ 'result': {'task_id': '1-688c4948-15b5223d-770c7c8b5656',
+  'user_id': 'FAA2F6144C4611F0A525DBA75ABC6F26',
+  'task_type': 'protenix',
+  'job_name': '确保通过验证的测试',
+  'status': 'completed',
+  'created_at': '2025-08-01 12:57:44',
+  'completed_at': '2025-08-01 13:01:15',
+  'parameters': {'complex_count': 1,
+   'complex_0_name': '确保通过验证的测试',
+   'complex_0_sequence_count': 2,
+   'seeds': 42,
+   'n_sample': 5,
+   'n_step': 150,
+   'n_cycle': 5,
+   'complex_0_sequence_0_type': 'dnaSequence',
+   'complex_0_sequence_0_sequence': 'ATGCGTACGGGGTTTTAAAACCCCGGATCCTTAGGCCTAAGGATCCTTAG',
+   'complex_0_sequence_0_count': 1,
+   'complex_0_sequence_1_type': 'rnaSequence',
+   'complex_0_sequence_1_sequence': 'AUGCGUACGGGGUUUUAAAACCCCGGAUCCUUAGGCCUAAGGAUCCUUAG',
+   'complex_0_sequence_1_count': 1},
+  'result': '结果文件数量: 10'}}
+```
+**未完成任务返回结果**
+
+注意`status`字段的值为`pending`,表示任务仍然在运行计算中,需要等待几分钟
+```python
+{'success': True,
+ 'message': '任务仍在运行，未完成',
+ 'result': {'task_id': '1-688c7950-1562fcd4-d1bd26f61a59',
+  'user_id': 'FAA2F6144C4611F0A525DBA75ABC6F26',
+  'task_type': 'protenix',
+  'job_name': 'protenix_Sequence_Test',
+  'status': 'pending',
+  'parameters': {'complex_count': 1,
+   'complex_0_name': 'protenix_Sequence_Test',
+   'complex_0_sequence_count': 2,
+   'seeds': 42,
+   'n_sample': 5,
+   'n_step': 150,
+   'n_cycle': 5,
+   'complex_0_sequence_0_type': 'proteinChain',
+   'complex_0_sequence_0_sequence': 'MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKREQTGQGWVPSNYITPVN',
+   'complex_0_sequence_0_count': 1,
+   'complex_0_sequence_1_type': 'ligand',
+   'complex_0_sequence_1_ligand': 'CC(=O)Oc1ccccc(=C)c1C(=O)O',
+   'complex_0_sequence_1_count': 1}}}
+```
+
+## 结果下载
+```python
+import os
+import requests
+
+# 已知已完成任务的task_id
+task_id = '1-688c4948-15b5223d-770c7c8b5656'
+BASE_URL = 'http://api.quregenai.com'
+url = f"{BASE_URL}/api/tasks/{task_id}/results_download"
+response = requests.get(url, headers=HEADERS)
+
+
+def download(response, local_path='./tmp/results/protenix_results.zip'):
+    """"
+    response:
+    local_path: 本地希望保存结果的文件路径
+    """"
+    if response.status_code == 200:
+        # 确保目录存在
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        
+        # 将响应内容写入本地文件
+        with open(local_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        
+        # 验证文件是否创建成功
+        if os.path.exists(local_path):
+            file_size = os.path.getsize(local_path)
+            print(f"✅ 文件下载成功: {local_path}")
+            print(f"📊 文件大小: {file_size} bytes")
+        else:
+            print("❌ 文件未创建成功")
+    else:
+        try:
+            error_info = response.json()
+            print(f"❌ 下载失败: {error_info}")
+        except:
+            print(f"❌ 下载失败: {response.text}")
+
+```
+提示下载成功
+```python
+✅ 文件下载成功: /tmps/results/protenix_results.zip
+📊 文件大小: 295983 bytes
+```
+
 
 ## 错误处理
 
@@ -610,6 +728,12 @@ API 使用标准的 HTTP 状态码来指示请求的成功或失败。
         "thread": 1200
     }
 ```
+### g. 查询到错误的task_id
+```python
+{'success': False,
+ 'message': '任务不存在, 检查任务id 是否正确: xx-xxxx'}
+```
+
 
 
 

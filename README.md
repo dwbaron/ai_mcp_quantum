@@ -493,7 +493,129 @@ Due to the long computation times for these models, all API calls are **asynchro
     ```
 3.  **Monitor Task Status**: You can monitor the status of your job using the `task_id` through the platform's web interface. Log in to the web portal, navigate to the appropriate model section (e.g., AutoDock), and find your task in the history list to view its status and retrieve results.
 
-**Note**: A dedicated API endpoint for programmatically checking task status is planned for a future release.
+## Task Query
+```python
+import requests
+# Known task ID
+task_id = '1-688c4948-15b5223d-770c7c8b5656'
+BASE_URL = 'http://api.quregenai.com'
+url = f"{BASE_URL}/api/tasks/{task_id}"
+
+API_KEY = 'sk-4d4de881d792473f9c2baafe1992a0c4'
+HEADERS = {
+    'Content-Type': 'application/json',
+    'Authorization': f'Bearer {API_KEY}'
+}
+
+response = requests.get(url, headers=HEADERS)
+response.json()
+```
+**Completed Task Response**
+
+Note that the `status` field value is `completed`
+```python
+{'success': True,
+ 'message': 'Task completed',
+ 'result': {'task_id': '1-688c4948-15b5223d-770c7c8b5656',
+  'user_id': 'FAA2F6144C4611F0A525DBA75ABC6F26',
+  'task_type': 'protenix',
+  'job_name': 'Validation Test',
+  'status': 'completed',
+  'created_at': '2025-08-01 12:57:44',
+  'completed_at': '2025-08-01 13:01:15',
+  'parameters': {'complex_count': 1,
+   'complex_0_name': 'Validation Test',
+   'complex_0_sequence_count': 2,
+   'seeds': 42,
+   'n_sample': 5,
+   'n_step': 150,
+   'n_cycle': 5,
+   'complex_0_sequence_0_type': 'dnaSequence',
+   'complex_0_sequence_0_sequence': 'ATGCGTACGGGGTTTTAAAACCCCGGATCCTTAGGCCTAAGGATCCTTAG',
+   'complex_0_sequence_0_count': 1,
+   'complex_0_sequence_1_type': 'rnaSequence',
+   'complex_0_sequence_1_sequence': 'AUGCGUACGGGGUUUUAAAACCCCGGAUCCUUAGGCCUAAGGAUCCUUAG',
+   'complex_0_sequence_1_count': 1},
+  'result': 'Result file count: 10'}}
+```
+**Incomplete Task Response**
+
+Note that the `status` field value is `pending`, indicating that the task is still running and needs to wait a few minutes
+```python
+{'success': True,
+ 'message': 'Task is still running, not completed',
+ 'result': {'task_id': '1-688c7950-1562fcd4-d1bd26f61a59',
+  'user_id': 'FAA2F6144C4611F0A525DBA75ABC6F26',
+  'task_type': 'protenix',
+  'job_name': 'protenix_Sequence_Test',
+  'status': 'pending',
+  'parameters': {'complex_count': 1,
+   'complex_0_name': 'protenix_Sequence_Test',
+   'complex_0_sequence_count': 2,
+   'seeds': 42,
+   'n_sample': 5,
+   'n_step': 150,
+   'n_cycle': 5,
+   'complex_0_sequence_0_type': 'proteinChain',
+   'complex_0_sequence_0_sequence': 'MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKREQTGQGWVPSNYITPVN',
+   'complex_0_sequence_0_count': 1,
+   'complex_0_sequence_1_type': 'ligand',
+   'complex_0_sequence_1_ligand': 'CC(=O)Oc1ccccc(=C)c1C(=O)O',
+   'complex_0_sequence_1_count': 1}}}
+```
+
+## Result File Download
+The download interface will package all files into a `.zip` archive
+> AutoDock results in the compressed package are sorted by best docking score, with file name prefixes `rank_0`, `rank_1`
+
+```python
+import os
+import requests
+
+# Known completed task ID
+task_id = '1-688c4948-15b5223d-770c7c8b5656'
+BASE_URL = 'http://api.quregenai.com'
+url = f"{BASE_URL}/api/tasks/{task_id}/results_download"
+response = requests.get(url, headers=HEADERS)
+
+
+def download(response, local_path='./tmp/results/protenix_results.zip'):
+    """
+    response: HTTP response object
+    local_path: Local path where you want to save the results
+    """
+    if response.status_code == 200:
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        
+        # Write response content to local file
+        with open(local_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        
+        # Verify file creation
+        if os.path.exists(local_path):
+            file_size = os.path.getsize(local_path)
+            print(f"✅ File downloaded successfully: {local_path}")
+            print(f"📊 File size: {file_size} bytes")
+        else:
+            print("❌ File creation failed")
+    else:
+        try:
+            error_info = response.json()
+            print(f"❌ Download failed: {error_info}")
+        except:
+            print(f"❌ Download failed: {response.text}")
+
+# Execute download
+download(response)
+```
+Download success message:
+```python
+✅ File downloaded successfully: /tmp/results/protenix_results.zip
+📊 File size: 295983 bytes
+```
 
 ## Error Handling
 
@@ -631,6 +753,11 @@ Request failed: 400, {
 }
 ```
 
+### g. Query with Incorrect Task ID
+```python
+{'success': False,
+ 'message': 'Task does not exist, check if task ID is correct: xx-xxxx'}
+```
 
 ## Best Practices
 
