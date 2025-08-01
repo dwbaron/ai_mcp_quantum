@@ -91,63 +91,222 @@ Performs molecular docking using the AutoDock algorithm.
 
 **Note**: You must provide exactly one of `ligand`, `ligands`, or `smiles`.
 
-#### Example: Single Ligand File
+#### Required Parameters Examples
 
-**cURL**
-```bash
-curl -X POST "https://api.quregenai.com/api/autodock_api/autodock_docking" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <your_api_key_here>" \
-  -d '{
-    "job_name": "AutoDock_Single_Ligand_Test",
-    "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-    "ligand": "ligand.sdf",  # locla file size should below 10MB
-    # "ligand": "https://www.url_path_to/ligand.sdf"  # URL
-    "center_x": -3.52,
-    "center_y": 5.57,
-    "center_z": -26.55,
-    "size_x": 15,
-    "size_y": 15,
-    "size_z": 15
-  }'
-```
+- `receptor`: Receptor local file/URL
+  - Local file:
+  ```python
+  # Local file path
+  path = '/path/to/file/receptor.pdb'
+  with open(path, 'r') as f:
+      content = f.read()
+  receptor = {
+    'content': content,
+    'name': 'receptor.pdb'
+  }
+  ```
+  - URL:
+  ```python
+  receptor = 'http://www.receptor.pdb'
+  ```
+
+- `center_x`, `center_y`, `center_z`: Docking box center coordinates (can be selected using the web application's molecular structure viewer)
+- `size_x`, `size_y`, `size_z`: Docking box dimensions (default is 15 for all)
+- Ligand input (choose one of three):
+  1. `ligand`: Single ligand, if it's a local file, use key-value (dictionary) object with required `content` field and optional `name` field for easier result viewing; if it's a URL, can be a direct string. (SDF format file, PDB format file, URL link address) File size should not exceed `10MB`
+  - Local file: 
+    ```python     
+    # Local disk path
+    path = '/path/to/file/ligand.sdf'
+    # Read file content
+    with open(path, 'r') as f:
+        content = f.read()
+    ligand = {
+      'content': content,
+      'name': 'ligand.sdf'
+    }
+    ```
+  - URL:
+    ```python
+    ligand = 'http://www.ligand.sdf'
+    ```
+  
+  2. `ligands`: Multiple ligands (multiple files, SDF format, PDB format, URL link addresses), list object, each file size should not exceed `10MB`
+  - Local files:
+    ```python
+    # Local disk multiple ligand file paths
+    path1 = '/path/to/file/ligand1.sdf'
+    path2 = '/path/to/file/ligand2.sdf'
+    # Read file contents
+    with open(path1, 'r') as f:
+        content1 = f.read()
+    with open(path2, 'r') as f:
+        content2 = f.read()
+    ligands = [
+      {'name': 'ligand1.sdf',
+       'content': content1 },
+       {'name': 'ligand2.sdf',
+       'content': content2}
+    ]
+    ```
+  - URLs:
+    ```python
+    ligands = ['http://www.ligand1.sdf', 
+               'http://www.ligand2.sdf']
+    ```
+
+  3. `smiles`: SMILES mode
+  - SMILES string, use newline `\n` to separate multiple molecules:
+    ```python
+    smiles = 'CCO\ncccccc'
+    ```
+  - File path, a `txt` file containing multiple molecular SMILES strings, one molecule SMILES per line:
+    ```python
+    # Local file
+    path = '/path/to/file/smiles.txt'
+    with open(path, 'r') as f:
+        content = f.read()
+    smiles = {
+      'content': content
+    }
+    # URL
+    smiles = 'http://www.smiles.txt'
+    ```
+
+#### Example 1.1: Single Ligand File
 
 **Python**
 ```python
 import requests
-import os
 
-BASE_URL = "https://api.quregenai.com"
-API_KEY = os.environ.get("QUREGENAI_API_KEY", "<your_api_key_here>")
+# Read local ligand file content, file size should not exceed 10MB
+with open('ligand.sdf', 'r') as f:
+    ligand_content = f.read()
 
-HEADERS = {
-    'Content-Type': 'application/json',
-    'Authorization': f'Bearer {API_KEY}'
+# Construct ligand file object
+ligand = {
+    'content': ligand_content,
+    'name': 'ligand.sdf'
 }
 
 def submit_autodock_single_ligand():
     url = f"{BASE_URL}/api/autodock_api/autodock_docking"
+    
     data = {
         "job_name": "AutoDock_Single_Ligand_Test",
         "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-        "ligand": "/path_to_file/ligand.sdf",  # local file size should below 10MB
-        # "ligand": "https://www.url_path_to/ligand.sdf"  # URL链接
-        "center_x": -3.52,
-        "center_y": 5.57,
-        "center_z": -26.55
+        "ligand": ligand,  # Use file object format
+        # "ligand": "https://www.ligand.sdf"  # Or use URL link
+        "center_x": '-3.52',
+        "center_y": '5.57',
+        "center_z": '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
     }
     
     response = requests.post(url, headers=HEADERS, json=data)
     
     if response.status_code == 200:
-        print("Job submitted successfully:", response.json())
-        return response.json()
+        result = response.json()
+        print(f"Task submitted successfully, Task ID: {result.get('task_id')}")
+        return result
     else:
-        print(f"Error: {response.status_code}", response.text)
+        print(f"Request failed: {response.status_code}, {response.text}")
         return None
 
-# submit_autodock_single_ligand()
+# Call example
+result = submit_autodock_single_ligand()
 ```
+
+#### Example 1.2: Batch Ligand Docking
+
+**Python**
+```python
+# Local disk multiple ligand file paths
+path1 = '/path/to/file/ligand1.sdf'
+path2 = '/path/to/file/ligand2.sdf'
+# Read file contents
+with open(path1, 'r') as f:
+    content1 = f.read()
+with open(path2, 'r') as f:
+    content2 = f.read()
+ligands = [
+  {'name': 'ligand1.sdf',
+   'content': content1 },
+   {'name': 'ligand2.sdf',
+   'content': content2}
+]
+
+def submit_autodock_multiple_ligands():
+    url = f"{BASE_URL}/api/autodock_api/autodock_docking"
+    
+    data = {
+        "job_name": "AutoDock_Multiple_Ligands_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        "ligands": ligands,
+        # "ligands": ['https://www.ligand1.sdf', 'https://www.ligand2.sdf'],  # URL link list
+        "center_x": '-3.52',
+        "center_y": '5.57',
+        "center_z": '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+    
+    response = requests.post(url, headers=HEADERS, json=data)
+    
+    if response.status_code == 200:
+        result = response.json()
+        print(f"Batch task submitted successfully, Task ID: {result.get('task_id')}")
+        return result
+    else:
+        print(f"Request failed: {response.status_code}, {response.text}")
+        return None
+```
+
+#### Example 1.3: SMILES String Docking
+
+**Python**
+```python
+# Local smiles.txt file reading
+path = '/path/to/file/smiles.txt'
+with open(path, 'r') as f:
+    content = f.read()
+smiles = {
+  'content': content
+}
+
+def submit_autodock_smiles():
+    url = f"{BASE_URL}/api/autodock_api/autodock_docking"
+    
+    data = {
+        "job_name": "AutoDock_SMILES_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        "smiles": smiles,  # Local smiles file
+        # "smiles": "CC(=O)CC(c1ccccc1)c1c(O)c2ccccc2oc1=O",  # Can also be a molecular smiles string
+        "center_x": '-3.52',
+        "center_y": '5.57',
+        "center_z": '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+    
+    response = requests.post(url, headers=HEADERS, json=data)
+    
+    if response.status_code == 200:
+        result = response.json()
+        print(f"SMILES task submitted successfully, Task ID: {result.get('task_id')}")
+        return result
+    else:
+        print(f"Request failed: {response.status_code}, {response.text}")
+        return None
+```
+
 
 ---
 
@@ -173,18 +332,6 @@ Performs molecular docking using the AI-based DiffDock algorithm.
 
 #### Example: Protein Sequence and SMILES
 
-**cURL**
-```bash
-curl -X POST "https://api.quregenai.com/api/diffdock_api/diffdock_docking" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <your_api_key_here>" \
-  -d '{
-    "job_name": "DiffDock_Sequence_Test",
-    "protein": "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKREQTGQGWVPSNYITPVN",
-    "smiles": "CCO"
-  }'
-```
-
 **Python**
 ```python
 import requests
@@ -198,20 +345,30 @@ HEADERS = {
     'Authorization': f'Bearer {API_KEY}'
 }
 
+# Local file
+with open('/path/to/file/receptor.pdb', 'r') as f:
+    content = f.read()
+protein = {
+  'content': content,
+  'name': 'protein.pdb'
+}
+
+# Can also be a URL
+# protein = 'https://files.rcsb.org/download/7RT3.pdb'
+
 def submit_diffdock_sequence_to_smiles():
     url = f"{BASE_URL}/api/diffdock_api/diffdock_docking"
-    protein_sequence = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKREQTGQGWVPSNYITPVN"
     
     data = {
         "job_name": "DiffDock_Sequence_Test",
-        "protein": protein_sequence,
+        "protein": protein,
         "smiles": "CCO",  # Ethanol
     }
     
     response = requests.post(url, headers=HEADERS, json=data)
     
     if response.status_code == 200:
-        print("Job submitted successfully:", response.json())
+        print("Task submitted successfully:", response.json())
         return response.json()
     else:
         print(f"Error: {response.status_code}", response.text)
@@ -219,6 +376,8 @@ def submit_diffdock_sequence_to_smiles():
 
 # submit_diffdock_sequence_to_smiles()
 ```
+
+
 
 ---
 
@@ -358,13 +517,14 @@ Request failed: 401, {"message":"Insufficient QAU balance, current balance: 0, a
 Request failed: 401, {"message":"Missing Authorization header, please provide API key","success":false}
 ```
 
+
 ### c. Missing Required Parameters
 ```python
     # Missing center_y and center_z parameters for pocket center coordinates
     data = {
         "job_name": "AutoDock_Single_Ligand_Test",
         "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-        "smiles": "xxxx.sdf",
+        "smiles": "CCO",
         "center_x": '-3.52',
         "size_x": 15,
         "size_y": 15,
@@ -384,11 +544,18 @@ Request failed: 400, {
 ```python
     # Both smiles and ligand parameters are provided,
     # but only one should be provided
+    with open('/path/to/file/ligand.sdf', 'r') as f:
+        content = f.read()
+    ligand = {
+      'content': content,
+      'name': 'ligand.sdf'
+    }
+
     data = {
         "job_name": "AutoDock_Single_Ligand_Test",
         "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-        "smiles": "CCO",
-        "ligand": 'xxx.sdf',
+        "smiles": "CCO",   # redundant
+        "ligand": ligand,  # redundant
         "center_x": '-3.52',
         'center_y': '5.57',
         'center_z': '-26.55',
@@ -409,10 +576,19 @@ Request failed: 400, {
 ### e. Incorrect Ligand File - Protein PDB Instead of Small Molecule
 ```python
     # Here ligand parameter is given a protein PDB local file instead of a small molecule
+    # 1uw6.pdb is a protein file
+    with open('/path/to/file/1uw6.pdb', 'r') as f
+        content = f.read()
+    
+    ligand = {
+      'content': content,
+      'name': '1uw6.pdb'
+    }
+
     data = {
         "job_name": "AutoDock_Single_Ligand_Test",
         "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-        'ligand': "1uw6.pdb",
+        'ligand': ligand,   # incorrect file
         "center_x": '-3.52',
         'center_y': '5.57',
         'center_z': '-26.55',

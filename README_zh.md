@@ -77,69 +77,230 @@ Authorization: Bearer your_api_key_here
 | `receptor` | string | 是 | 指向受体文件（例如 PDB 格式）的 URL 或服务器可访问路径。 |
 | `center_x`, `center_y`, `center_z` | number/string | 是 | 对接盒子中心的坐标。 |
 | `size_x`, `size_y`, `size_z` | number | 否 | 对接盒子的尺寸。每个轴默认为 15。 |
-| `ligand` | string | 是 (三选一) | 单个配体文件（SDF, PDB, URL）的路径，文件大小不超过`10MB`|
-| `ligands` | array of strings | 是 (三选一) | 多个配体文件路径的列表。 |
-| `smiles` | string | 是 (三选一) | SMILES 字符串（多个分子使用 `\n` 分隔），或指向包含 SMILES 字符串（每行一个）的 `.txt` 文件的路径。 |
+| `ligand` | string | 是 (三选一) | 单个配体文件（SDF, PDB, URL），文件大小不超过`10MB`|
+| `ligands` | array of strings | 是 (三选一) | 多个配体文件的列表。 |
+| `smiles` | string | 是 (三选一) | SMILES 字符串（多个分子使用 `\n` 分隔），或指向包含 SMILES 字符串（每行一个）的 `.txt` 文件。 |
 | `thread` | integer | 否 | 线程数。默认为 1200，最小为 1000。 |
 
 **注意**: 您必须提供 `ligand`、`ligands` 或 `smiles` 中的一种。
 
-#### 示例: 单个配体文件
+#### 示例：必须参数
+- `receptor`: 受体本地文件/URL
+  - 本地文件
+  ```python
+  # 本地文件路径
+  path = '/path/to/file/receptor.pdb'
+  with open(path, 'r') as f:
+      content = f.read()
+  receptor = {
+    'content': content,
+    'name': 'receptor.pdb'
+  }
+  ```
+  - url
+  ```python
+  receptor = 'http://www.receptor.pdb'
+  ```
 
-**cURL**
-```bash
-curl -X POST "https://api.quregenai.com/api/autodock_api/autodock_docking" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <your_api_key_here>" \
-  -d '{
-    "job_name": "AutoDock_Single_Ligand_Test",
-    "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-    "ligand": "/path_to_file/ligand.sdf",  # 本地文件大小不超过10MB
-    # "ligand": "https://www.url_path_to/ligand.sdf"  # URL链接
-    "center_x": -3.52,
-    "center_y": 5.57,
-    "center_z": -26.55,
-    "size_x": 15,
-    "size_y": 15,
-    "size_z": 15
-  }'
-```
+- `center_x`, `center_y`, `center_z`: 对接盒子中心坐标（可以利用web应用的分子结构查看器选择）
+- `size_x`, `size_y`, `size_z`: 对接盒子尺寸（默认都为15）
+- 配体输入（三选一）：
+  1. `ligand`: 单个配体，如果是本地文件则为键值（字典）对象，必须包含`content`字段，`name`字段可选，方便后续查看结果；如果是url可以直为字符串，（SDF格式文件，PDB格式文件，url链接地址）文件大小不超过`10MB`
+  - 本地文件: 
+    ```python     
+    # 本地磁盘路径
+    path = '/path/to/file/ligand.sdf'
+    # 读取文件内容
+    with open(path, 'r') as f:
+        content = f.read()
+    ligand = {
+      'content': content,
+      'name': 'ligand.sdf'
+    }
+    ```
+  - url:
+    ```python
+    ligand = 'http://www.ligand.sdf'
+    ```
+  
+  2. `ligands`: 多个配体 （多个文件，SDF格式，PDB格式， url链接地址）， 列表对象，其中每个文件大小不超过`10MB`
+  - 本地文件
+    ```python
+    # 本地磁盘多个配体文件路径
+    path1 = '/path/to/file/ligand1.sdf'
+    path2 = '/path/to/file/ligand2.sdf'
+    # 读取文件内容
+    with open(path1, 'r') as f:
+        content1 = f.read()
+    with open(path2, 'r') as f:
+        content2 = f.read()
+    ligands = [
+      {'name': 'ligand1.sdf',
+       'content': content1 },
+       {'name': 'ligand2.sdf',
+       'content': content2}
+    ]
+    ```
+  - url
+    ```python
+    ligands = ['http://www.ligand1.sdf', 
+               'http://www.ligand2.sdf']
+    ```
+
+  3. `smiles`: SMILES模式
+  - SMILES字符串，换行符`\n`分割多个分子
+    ```python
+    smiles = 'CCO\ncccccc'
+    ```
+  - 文件路径，本身是`txt`文件，包含多个分子smiles字符串，一个分子smiles一行）
+    ```python
+    # 本地文件
+    path = '/path/to/file/smiles.txt'
+    with open(path, 'r') as f:
+        content = f.read()
+    smiles = {
+      'content': content
+    }
+    # url
+    smiles = 'http://www.smiles.txt'
+    
+    ```
+
+
+
+#### 示例1.1: 单个配体文件
 
 **Python**
 ```python
 import requests
-import os
 
-BASE_URL = "https://api.quregenai.com"
-API_KEY = os.environ.get("QUREGENAI_API_KEY", "<your_api_key_here>")
+# 读取本地配体文件内容，文件大小不超过10MB
+with open('ligand.sdf', 'r') as f:
+    ligand_content = f.read()
 
-HEADERS = {
-    'Content-Type': 'application/json',
-    'Authorization': f'Bearer {API_KEY}'
+# 构造ligand文件对象
+ligand = {
+    'content': ligand_content,
+    'name': 'ligand.sdf'
 }
 
 def submit_autodock_single_ligand():
     url = f"{BASE_URL}/api/autodock_api/autodock_docking"
+    
     data = {
         "job_name": "AutoDock_Single_Ligand_Test",
         "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-        "ligand": "/path_to_file/ligand.sdf",  # 本地文件大小不超过10MB
-        # "ligand": "https://www.url_path_to/ligand.sdf"  # URL链接
-        "center_x": -3.52,
-        "center_y": 5.57,
-        "center_z": -26.55
+        "ligand": ligand,  # 使用文件对象格式
+        # "ligand": "https://www.ligand.sdf"  # 或者使用URL链接
+        "center_x": '-3.52',
+        "center_y": '5.57',
+        "center_z": '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
     }
     
     response = requests.post(url, headers=HEADERS, json=data)
     
     if response.status_code == 200:
-        print("任务提交成功:", response.json())
-        return response.json()
+        result = response.json()
+        print(f"任务提交成功，任务ID: {result.get('task_id')}")
+        return result
     else:
-        print(f"错误: {response.status_code}", response.text)
+        print(f"请求失败: {response.status_code}, {response.text}")
         return None
 
-# submit_autodock_single_ligand()
+# 调用示例
+result = submit_autodock_single_ligand()
+```
+
+#### 示例1.2: 批量配体对接
+
+**Python**
+```python
+    # 本地磁盘多个配体文件路径
+    path1 = '/path/to/file/ligand1.sdf'
+    path2 = '/path/to/file/ligand2.sdf'
+    # 读取文件内容
+    with open(path1, 'r') as f:
+        content1 = f.read()
+    with open(path2, 'r') as f:
+        content2 = f.read()
+    ligands = [
+      {'name': 'ligand1.sdf',
+       'content': content1 },
+       {'name': 'ligand2.sdf',
+       'content': content2}
+    ]
+
+def submit_autodock_multiple_ligands():
+    url = f"{BASE_URL}/api/autodock_api/autodock_docking"
+    
+    data = {
+        "job_name": "AutoDock_Multiple_Ligands_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        "ligands": ligands,
+        # "ligands": ['https://www.ligand1.sdf', 'https://www.ligand2.sdf'],  # url链接列表
+        "center_x": '-3.52',
+        "center_y": '5.57',
+        "center_z": '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+    
+    response = requests.post(url, headers=HEADERS, json=data)
+    
+    if response.status_code == 200:
+        result = response.json()
+        print(f"批量任务提交成功，任务ID: {result.get('task_id')}")
+        return result
+    else:
+        print(f"请求失败: {response.status_code}, {response.text}")
+        return None
+```
+
+
+#### 示例1.3: SMILES字符串对接
+**Python**
+```python
+
+# 本地 smiles.txt 文本读取
+path = '/path/to/file/smiles.txt'
+with open(path, 'r') as f:
+    content = f.read()
+smiles = {
+  'content': content
+}
+
+def submit_autodock_smiles():
+    url = f"{BASE_URL}/api/autodock_api/autodock_docking"
+    
+    data = {
+        "job_name": "AutoDock_SMILES_Test",
+        "receptor": "https://files.rcsb.org/download/7RT3.pdb",
+        "smiles": smiles,  # 本地smiles文件
+        # "smiles": "CC(=O)CC(c1ccccc1)c1c(O)c2ccccc2oc1=O",  # 也可以是分子的smiles字符串
+        "center_x": '-3.52',
+        "center_y": '5.57',
+        "center_z": '-26.55',
+        "size_x": 15,
+        "size_y": 15,
+        "size_z": 15,
+        "thread": 1200
+    }
+    
+    response = requests.post(url, headers=HEADERS, json=data)
+    
+    if response.status_code == 200:
+        result = response.json()
+        print(f"SMILES任务提交成功，任务ID: {result.get('task_id')}")
+        return result
+    else:
+        print(f"请求失败: {response.status_code}, {response.text}")
+        return None
 ```
 
 ---
@@ -166,18 +327,6 @@ def submit_autodock_single_ligand():
 
 #### 示例: 蛋白质序列和 SMILES
 
-**cURL**
-```bash
-curl -X POST "https://api.quregenai.com/api/diffdock_api/diffdock_docking" \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <your_api_key_here>" \
-  -d '{
-    "job_name": "DiffDock_Sequence_Test",
-    "protein": "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKREQTGQGWVPSNYITPVN",
-    "smiles": "CCO"
-  }'
-```
-
 **Python**
 ```python
 import requests
@@ -191,13 +340,23 @@ HEADERS = {
     'Authorization': f'Bearer {API_KEY}'
 }
 
+# 本地文件
+with open('/path/to/file/receptor.pdb', 'r') as f:
+    content = f.read()
+protein = {
+  'content': content,
+  'name': 'protein.pdb'
+}
+
+# 也可以是 url
+# protein = 'https://files.rcsb.org/download/7RT3.pdb'
+
 def submit_diffdock_sequence_to_smiles():
     url = f"{BASE_URL}/api/diffdock_api/diffdock_docking"
-    protein_sequence = "MKTAYIAKQRQISFVKSHFSRQLEERLGLIEVQAPILSRVGDGTQDNLSGAEKAVQVKVKALPDAQFEVVHSLAKWKREQTGQGWVPSNYITPVN"
     
     data = {
         "job_name": "DiffDock_Sequence_Test",
-        "protein": protein_sequence,
+        "protein": protein,
         "smiles": "CCO",  # 乙醇
     }
     
@@ -341,13 +500,15 @@ API 使用标准的 HTTP 状态码来指示请求的成功或失败。
 
 
 ## 常见运行失败样例
-### a. 余额不足
+### a. API 验证错误
+```bash
+# 传递了错误的API_KEY
+{'message': '无效的API密钥', 'success': False}
+```
+
+### b. 余额不足
 ```bash
 请求失败: 401, {"message":"QAU余额不足，当前余额: 0，至少需要5 QAU才能提交任务，请先充值","success":false}
-```
-### b. API_KEY 验证错误
-```bash
-请求失败: 401, {"message":"缺少Authorization头部，请提供API密钥","success":false}
 ```
 
 ### c. 缺少必要的参数
@@ -356,7 +517,7 @@ API 使用标准的 HTTP 状态码来指示请求的成功或失败。
     data = {
         "job_name": "AutoDock_Single_Ligand_Test",
         "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-        "smiles": "xxxx.sdf",
+        "smiles": "CCO",
         "center_x": '-3.52',
         "size_x": 15,
         "size_y": 15,
@@ -377,11 +538,19 @@ API 使用标准的 HTTP 状态码来指示请求的成功或失败。
 
     # 这里不但提供了smiles参数而且还有ligand参数，
     # 但只能提供其中的一项
+    with open('/path/to/file/ligand.sdf', 'r') as f:
+        content = f.read()
+    
+    ligand = {
+      'content': content,
+      'name': 'ligand.sdf'
+    }
+    
     data = {
         "job_name": "AutoDock_Single_Ligand_Test",
         "receptor": "https://files.rcsb.org/download/7RT3.pdb",
         "smiles": "CCO",
-        "ligand": 'xxx.sdf',
+        "ligand": ligand,
         "center_x": '-3.52',
         'center_y': '5.57',
         'center_z': '-26.55',
@@ -402,10 +571,11 @@ API 使用标准的 HTTP 状态码来指示请求的成功或失败。
 ### e. 配体文件错误上传成蛋白质pdb文件，而不是小分子
 ```python
     # 这里ligand参数给了一个蛋白质pdb本地文件而不是小分子
+
     data = {
         "job_name": "AutoDock_Single_Ligand_Test",
         "receptor": "https://files.rcsb.org/download/7RT3.pdb",
-        'ligand': "1uw6.pdb",
+        'smiles': "CCO",
         "center_x": '-3.52',
         'center_y': '5.57',
         'center_z': '-26.55',
