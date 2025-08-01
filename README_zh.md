@@ -494,7 +494,7 @@ task_id = '1-688c4948-15b5223d-770c7c8b5656'
 BASE_URL = 'http://api.quregenai.com'
 url = f"{BASE_URL}/api/tasks/{task_id}"
 
-API_KEY = 'sk-4d4de881d792473f9c2baafe1992a0c4'
+API_KEY = 'sk-xxxx'
 HEADERS = {
     'Content-Type': 'application/json',
     'Authorization': f'Bearer {API_KEY}'
@@ -557,7 +557,10 @@ response.json()
    'complex_0_sequence_1_count': 1}}}
 ```
 
-## 结果下载
+## 结果文件下载
+下载接口会将所有文件打包为`.zip`压缩包
+> autodock 压缩包内部的结果文件会根据最佳对接得分进行排序, 以`rank_0`, `rand_1`为文件名前缀
+
 ```python
 import os
 import requests
@@ -597,6 +600,9 @@ def download(response, local_path='./tmp/results/protenix_results.zip'):
             print(f"❌ 下载失败: {error_info}")
         except:
             print(f"❌ 下载失败: {response.text}")
+
+# 执行下载
+download()
 
 ```
 提示下载成功
