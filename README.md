@@ -501,7 +501,7 @@ task_id = '1-688c4948-15b5223d-770c7c8b5656'
 BASE_URL = 'http://api.quregenai.com'
 url = f"{BASE_URL}/api/tasks/{task_id}"
 
-API_KEY = 'sk-4d4de881d792473f9c2baafe1992a0c4'
+API_KEY = 'sk-xxxx'
 HEADERS = {
     'Content-Type': 'application/json',
     'Authorization': f'Bearer {API_KEY}'
@@ -517,7 +517,7 @@ Note that the `status` field value is `completed`
 {'success': True,
  'message': 'Task completed',
  'result': {'task_id': '1-688c4948-15b5223d-770c7c8b5656',
-  'user_id': 'FAA2F6144C4611F0A525DBA75ABC6F26',
+  'user_id': 'XXXX',
   'task_type': 'protenix',
   'job_name': 'Validation Test',
   'status': 'completed',
@@ -545,7 +545,7 @@ Note that the `status` field value is `pending`, indicating that the task is sti
 {'success': True,
  'message': 'Task is still running, not completed',
  'result': {'task_id': '1-688c7950-1562fcd4-d1bd26f61a59',
-  'user_id': 'FAA2F6144C4611F0A525DBA75ABC6F26',
+  'user_id': 'XXXX',
   'task_type': 'protenix',
   'job_name': 'protenix_Sequence_Test',
   'status': 'pending',
